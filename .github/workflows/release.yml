@@ -5,7 +5,7 @@ name: Compiler et publier
 on:
   push:
     branches: [main]
-    paths: ['package.json']
+    paths: ['package.json', '.github/workflows/release.yml']
   workflow_dispatch:
 
 permissions:
@@ -44,4 +44,12 @@ jobs:
 
       - name: Compiler l'installateur Windows et publier la v${{ steps.v.outputs.version }}
         if: steps.v.outputs.skip != 'true'
-        run: npx electron-builder --win --publish always
+        run: |
+          set +e
+          npx electron-builder --win --publish always 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            msg=$(tail -60 build.log | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=electron-builder::$msg"
+          fi
+          exit $code
