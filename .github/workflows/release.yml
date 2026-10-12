@@ -1,9 +1,11 @@
 name: Compiler et publier
 
-# Se déclenche quand on pousse un tag de version (ex. v1.0.1) — via `npm run release`
+# Se déclenche quand le numéro de version de package.json change sur main
+# (c'est ce que fait `npm run release`). Si la version est déjà publiée, rien ne se passe.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['package.json']
   workflow_dispatch:
 
 permissions:
@@ -12,18 +14,34 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Version déjà publiée ?
+        id: v
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La v$V existe déjà, rien à faire."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.v.outputs.skip != 'true'
         with:
           node-version: 22
           cache: npm
 
       - name: Installer
+        if: steps.v.outputs.skip != 'true'
         run: npm ci
 
-      - name: Compiler l'installateur Windows et publier la release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compiler l'installateur Windows et publier la v${{ steps.v.outputs.version }}
+        if: steps.v.outputs.skip != 'true'
         run: npx electron-builder --win --publish always

@@ -47,7 +47,8 @@ npm run release        # 1.0.0 → 1.0.1 (petite modif)
 npm run release:minor  # 1.0.1 → 1.1.0 (nouvelle fonction)
 ```
 
-GitHub compile l'installateur Windows (~5 min, onglet **Actions**) et publie la version.
+Dès que le nouveau numéro de version arrive sur GitHub, il compile l'installateur Windows
+(~5 min, onglet **Actions**) et publie la version.
 Sur chaque PC, le Fichator la télécharge en fond, affiche un bandeau
 « La version x.y.z est prête — Redémarrer et mettre à jour », puis montre les nouveautés.
 

@@ -11,8 +11,8 @@
     "start": "electron .",
     "web": "open src/index.html || xdg-open src/index.html",
     "dist": "electron-builder --win --publish never",
-    "release": "npm version patch -m \"Version %s\" && git push --follow-tags",
-    "release:minor": "npm version minor -m \"Version %s\" && git push --follow-tags"
+    "release": "npm version patch -m \"Version %s\" && git push",
+    "release:minor": "npm version minor -m \"Version %s\" && git push"
   },
   "dependencies": {
     "electron-updater": "6.8.9"
@@ -36,7 +36,14 @@
       "output": "dist"
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico",
       "artifactName": "Fichator-Setup-${version}.${ext}"
     },
