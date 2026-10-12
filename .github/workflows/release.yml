@@ -1,7 +1,7 @@
 name: Compiler et publier
 
 # Se déclenche quand le numéro de version de package.json change sur main
-# (c'est ce que fait `npm run release`). Si la version est déjà publiée, rien ne se passe.
+# (c'est ce que fait `npm run release`). Si la version est déjà publiée en entier, rien ne se passe.
 on:
   push:
     branches: [main]
@@ -27,8 +27,8 @@ jobs:
         run: |
           V=$(node -p "require('./package.json').version")
           echo "version=$V" >> "$GITHUB_OUTPUT"
-          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "La v$V existe déjà, rien à faire."
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx latest.yml; then
+            echo "La v$V est déjà publiée, rien à faire."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -42,14 +42,26 @@ jobs:
         if: steps.v.outputs.skip != 'true'
         run: npm ci
 
-      - name: Compiler l'installateur Windows et publier la v${{ steps.v.outputs.version }}
+      - name: Compiler l'installateur Windows
         if: steps.v.outputs.skip != 'true'
         run: |
           set +e
-          npx electron-builder --win --publish always 2>&1 | tee build.log
+          npx electron-builder --win --publish never 2>&1 | tee build.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
             msg=$(tail -60 build.log | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=electron-builder::$msg"
           fi
           exit $code
+
+      - name: Publier la v${{ steps.v.outputs.version }}
+        if: steps.v.outputs.skip != 'true'
+        run: |
+          V=${{ steps.v.outputs.version }}
+          ls -la dist
+          FILES="dist/Fichator-Setup-$V.exe dist/Fichator-Setup-$V.exe.blockmap dist/latest.yml"
+          for f in $FILES; do [ -f "$f" ] || { echo "::error::Fichier manquant : $f"; exit 1; }; done
+          if ! gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "v$V" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Fichator $V" --notes "Version $V" || exit 1
+          fi
+          gh release upload "v$V" $FILES --repo "$GITHUB_REPOSITORY" --clobber || { echo "::error::Envoi des fichiers impossible"; exit 1; }
